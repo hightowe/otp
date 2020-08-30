@@ -9,8 +9,17 @@ Simple python program to provide Google Authenticator-style TOTP one-time passwo
      * live.com
      * login.gov
      * twilio
+     Or -a to print OTPs for all of these services...
+
     $ otp github
     367973
+    
+    $ otp -a
+     constant : 240440
+       github : 714866
+     live.com : 866147
+    login.gov : 436235
+       twilio : 155662
 
 # Installation
 Install the python module onetimepass using pip:
