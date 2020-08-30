@@ -1,5 +1,5 @@
 # otp
-Simple python program to provide TOTP one-time passwords at the command line
+Simple python program to provide Google Authenticator-style TOTP one-time passwords at the command line.
 
 # Example usage:
     $ otp
