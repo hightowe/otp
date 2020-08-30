@@ -1,0 +1,88 @@
+#!/usr/bin/python
+
+#########################################################################
+# TOTP Generator
+#
+# First written in 2019 by Lester Hightower, to get Google Authenticator
+# TOTP tokens from the Linux command line instead of having to use my
+# phone. Later, I added TOTP support to kpcli.
+#
+# Tested on Python versions 2.7.12 and 3.5.2.
+#########################################################################
+
+import sys, os.path, re    # core python
+# https://otp.readthedocs.io/en/stable/
+import onetimepass as otp  # pip install onetimepass
+
+def main():
+  services = load_services()
+  if (not len(services)):
+    print("No services defined.")
+    sys.exit()
+
+  arguments = len(sys.argv) - 1
+  service = ''
+  if (arguments != 1):
+    print("This script takes exactly one argument, one of these:")
+    service_names = sorted(services.keys())
+    for key in service_names: print(" * " + key)
+    quit()
+  else:
+    service = sys.argv[1]
+
+  if (service in services.keys()):
+    my_secret = services[service]
+  else:
+    print("Service not known")
+    quit()
+
+  # Secrets are base32 encoded and must be properly padded with trailing
+  # equal signs. Lester learned that TOTP QR Codes often don't have the
+  # padding, and so that needs to be handled by the apps. Lester chose to
+  # do that here so that the service entries need not be manually padded.
+  needed_padding = len(my_secret) % 8;
+  if (needed_padding > 0):
+    my_secret = my_secret + "=" * needed_padding
+
+  my_token = otp.get_totp(my_secret)
+
+  print("%06d" % my_token)
+
+# Load the services from the config file
+def load_services():
+  exedir = os.path.dirname(os.path.realpath(__file__))
+  confs = [
+        os.path.expanduser("~") + os.path.sep + ".otprc",
+	exedir + os.path.sep + "otp.conf",
+	]
+  f = []	# to hold the file's lines
+  for conffile in confs:
+    if os.path.exists(conffile):
+      with open(conffile) as x: f = x.readlines()
+      if (len(f)):
+        break
+
+  if (not len(f)):
+    print("No conf file found in these paths:")
+    for conf in confs: print(" * " + conf)
+
+  services = {}
+  for line in f:
+    line = line.rstrip('\r\n')
+    if (re.search(r":", line) is None):
+      continue
+    if (re.search(r"^\s*#", line) is not None):
+      continue
+    kv = line.split(":", 1)
+    k = kv[0].rstrip().lstrip()
+    vc = kv[1].split("#", 1)    # separate any trailing comments
+    v = vc[0].rstrip().lstrip()
+    services[k] = v
+
+  return services
+
+
+if __name__ == "__main__":
+  main()
+  sys.exit()
+
