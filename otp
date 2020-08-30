@@ -18,7 +18,7 @@ def main():
   services = load_services()
   if (not len(services)):
     print("No services defined.")
-    sys.exit()
+    quit()
 
   arguments = len(sys.argv) - 1
   service = ''
@@ -26,27 +26,45 @@ def main():
     print("This script takes exactly one argument, one of these:")
     service_names = sorted(services.keys())
     for key in service_names: print(" * " + key)
+    print("Or -a to print OTPs for all of these services...")
     quit()
   else:
     service = sys.argv[1]
 
-  if (service in services.keys()):
-    my_secret = services[service]
-  else:
-    print("Service not known")
+  # The user wants an OTP for all services
+  if (service == "-a"):
+    otps = {}
+    max_len_service = 0
+    for service in services.keys():
+      my_secret = pad_secret(services[service])
+      otps[service] = otp.get_totp(my_secret)
+      if (len(service) > max_len_service): max_len_service = len(service)
+    service_fmt = "%" + str(max_len_service) + "s : %s"
+    for service in sorted(services.keys()):
+      print(service_fmt % (service, otps[service]))
     quit()
 
-  # Secrets are base32 encoded and must be properly padded with trailing
-  # equal signs. Lester learned that TOTP QR Codes often don't have the
-  # padding, and so that needs to be handled by the apps. Lester chose to
-  # do that here so that the service entries need not be manually padded.
+  # The user wants an OTP for one service
+  if (service in services.keys()):
+    my_secret = pad_secret(services[service])
+    my_token = otp.get_totp(my_secret)
+    print("%06d" % my_token)
+  else:
+    print("Service not known")
+
+  quit()
+
+
+# Secrets are base32 encoded and must be properly padded with trailing
+# equal signs. Lester learned that TOTP QR Codes often don't have the
+# padding, and so that needs to be handled by the apps. Lester chose to
+# do that so that the service entries need not be manually padded.
+def pad_secret(secret):
+  my_secret = secret
   needed_padding = len(my_secret) % 8;
   if (needed_padding > 0):
     my_secret = my_secret + "=" * needed_padding
-
-  my_token = otp.get_totp(my_secret)
-
-  print("%06d" % my_token)
+  return my_secret
 
 # Load the services from the config file
 def load_services():
@@ -84,5 +102,4 @@ def load_services():
 
 if __name__ == "__main__":
   main()
-  sys.exit()
-
+  quit()
