@@ -14,6 +14,9 @@ import sys, os.path, re    # core python
 # https://otp.readthedocs.io/en/stable/
 import onetimepass as otp  # pip install onetimepass
 
+version_info = (1, 0, 1)
+version = '.'.join(str(c) for c in version_info)
+
 def main():
   services = load_services()
   if (not len(services)):
@@ -23,7 +26,8 @@ def main():
   arguments = len(sys.argv) - 1
   service = ''
   if (arguments != 1):
-    print("This script takes exactly one argument, one of these:")
+    print("otp version " + version);
+    print("This program takes exactly one argument, one of these:")
     service_names = sorted(services.keys())
     for key in service_names: print(" * " + key)
     print("Or -a to print OTPs for all of these services...")
@@ -36,8 +40,7 @@ def main():
     otps = {}
     max_len_service = 0
     for service in services.keys():
-      my_secret = pad_secret(services[service])
-      otps[service] = otp.get_totp(my_secret)
+      otps[service] = otp.get_totp(services[service])
       if (len(service) > max_len_service): max_len_service = len(service)
     service_fmt = "%" + str(max_len_service) + "s : %s"
     for service in sorted(services.keys()):
@@ -46,8 +49,7 @@ def main():
 
   # The user wants an OTP for one service
   if (service in services.keys()):
-    my_secret = pad_secret(services[service])
-    my_token = otp.get_totp(my_secret)
+    my_token = otp.get_totp(services[service])
     print("%06d" % my_token)
   else:
     print("Service not known")
@@ -92,9 +94,11 @@ def load_services():
     if (re.search(r"^\s*#", line) is not None):
       continue
     kv = line.split(":", 1)
-    k = kv[0].rstrip().lstrip()
+    k = kv[0].strip()           # remove leading and trailing spaces
     vc = kv[1].split("#", 1)    # separate any trailing comments
-    v = vc[0].rstrip().lstrip()
+    v = vc[0].strip()           # remove leading and trailing spaces
+    v = ''.join(v.split())      # remove all whitespace in the secret
+    v = pad_secret(v)           # pad the Base32 secret, if needed
     services[k] = v
 
   return services
@@ -103,3 +107,4 @@ def load_services():
 if __name__ == "__main__":
   main()
   quit()
+
