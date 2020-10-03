@@ -11,10 +11,11 @@
 #########################################################################
 
 import sys, os.path, re    # core python
+import base64
 # https://otp.readthedocs.io/en/stable/
 import onetimepass as otp  # pip install onetimepass
 
-version_info = (1, 0, 1)
+version_info = (1, 1, 0)
 version = '.'.join(str(c) for c in version_info)
 
 def main():
@@ -98,6 +99,8 @@ def load_services():
     vc = kv[1].split("#", 1)    # separate any trailing comments
     v = vc[0].strip()           # remove leading and trailing spaces
     v = ''.join(v.split())      # remove all whitespace in the secret
+    if ('0x' == v[0:2]):        # If in hex, convert to Base32
+      v = base64.b32encode(v[2:].decode("hex"))
     v = pad_secret(v)           # pad the Base32 secret, if needed
     services[k] = v
 
