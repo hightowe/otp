@@ -43,7 +43,7 @@ def main():
     for service in services.keys():
       otps[service] = otp.get_totp(services[service])
       if (len(service) > max_len_service): max_len_service = len(service)
-    service_fmt = "%" + str(max_len_service) + "s : %s"
+    service_fmt = "%" + str(max_len_service) + "s : %06d"
     for service in sorted(services.keys()):
       print(service_fmt % (service, otps[service]))
     quit()
