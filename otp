@@ -50,6 +50,7 @@ def main():
 
   # The user wants an OTP for one service
   if (service in services.keys()):
+    #print(services[service]);
     my_token = otp.get_totp(services[service])
     print("%06d" % my_token)
   else:
@@ -64,7 +65,7 @@ def main():
 # do that so that the service entries need not be manually padded.
 def pad_secret(secret):
   my_secret = secret
-  needed_padding = len(my_secret) % 8;
+  needed_padding = 8 - (len(my_secret) % 8);
   if (needed_padding > 0):
     my_secret = my_secret + "=" * needed_padding
   return my_secret
