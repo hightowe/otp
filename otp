@@ -31,10 +31,17 @@ def main():
     print("This program takes exactly one argument, one of these:")
     service_names = sorted(services.keys())
     for key in service_names: print(" * " + key)
-    print("Or -a to print OTPs for all of these services...")
+    print("Or -l to simply list all of the services...")
+    print("Or -a to print OTPs for all of the services...")
     quit()
   else:
     service = sys.argv[1]
+
+  # The user wants a simple list of all services
+  if (service == "-l"):
+    for service in sorted(services.keys()):
+      print(service)
+    quit()
 
   # The user wants an OTP for all services
   if (service == "-a"):
