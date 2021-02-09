@@ -1,0 +1,21 @@
+################################################
+# Bash completion function for otp.
+################################################
+#
+# This file should be placed in the system's
+# /etc/bash_completion.d/otp or it can be placed
+# at ~/.bash_completion.otp and this line added
+# to ~/.bash_completion:
+#
+# source ~/.bash_completion.otp
+################################################
+_otp()
+{
+    local cur
+
+    COMPREPLY=()
+    _get_comp_words_by_ref cur
+
+    COMPREPLY=( $( compgen -W "$( otp -l )" -- "$cur" ) )
+} &&
+complete -F _otp otp
