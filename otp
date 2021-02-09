@@ -26,7 +26,7 @@ def main():
 
   arguments = len(sys.argv) - 1
   service = ''
-  if (arguments != 1):
+  if (arguments != 1 or sys.argv[1] == '--help'):
     print("otp version " + version);
     print("This program takes exactly one argument, one of these:")
     service_names = sorted(services.keys())
