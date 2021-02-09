@@ -11,8 +11,7 @@ Simple python program to provide Google Authenticator-style TOTP one-time passwo
      * twilio
     Or -l to simply list all of the services...
     Or -a to print OTPs for all of the services...
-
-
+    
     $ otp github
     367973
     
@@ -31,6 +30,11 @@ Place the otp binary where you would like it to be and make it executable.
 
 Copy otp.conf from this repository to the same path as the otp program or to ~/.otprc
 and edit it to contain your information.
+
+# Tab completion for bash
+I find it very nice to have bash tab completion for otp and adding it is easy.
+Just download bash_completion.otp and install it as per the instructions at
+the top of the file.
 
 # Tips for obtaining OTP secrets
 Some services/sites will display TOTP secrets that you can just copy and paste,
