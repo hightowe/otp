@@ -5,15 +5,16 @@
 #
 # First written in 2019 by Lester Hightower, to get Google Authenticator
 # TOTP tokens from the Linux command line instead of having to use my
-# phone. Later, I added TOTP support to kpcli.
+# phone. Later, I added TOTP support to kpcli, but I still like using
+# this program in 2023.
 #
-# Tested on Python versions 2.7.12 and 3.5.2.
+# Tested on Python versions 2.7.12, 3.5.2, 3.6.9, and 3.10.6
 #########################################################################
 
 import sys, os.path, re    # core python
-import base64
+import base64, codecs      # core python
 # https://otp.readthedocs.io/en/stable/
-import onetimepass as otp  # pip install onetimepass
+import onetimepass as otp  # python3-onetimepass / pip install onetimepass
 
 version_info = (1, 1, 0)
 version = '.'.join(str(c) for c in version_info)
@@ -109,7 +110,7 @@ def load_services():
     v = vc[0].strip()           # remove leading and trailing spaces
     v = ''.join(v.split())      # remove all whitespace in the secret
     if ('0x' == v[0:2]):        # If in hex, convert to Base32
-      v = base64.b32encode(v[2:].decode("hex"))
+      v = base64.b32encode(codecs.decode(v[2:],"hex"))
     v = pad_secret(v)           # pad the Base32 secret, if needed
     services[k] = v
 
