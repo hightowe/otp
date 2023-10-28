@@ -94,7 +94,7 @@ function decrypt {
       printf "\033[0;31m%s\033[0m\n" \
 	    "Use ^D to cancel passphrase input. ^C can bork your terminal!"
     fi
-    "$GPGEXE" --decrypt --quiet "$confpath_gpg" > "$confpath"
+    "$GPGEXE" --decrypt --quiet -o "$confpath" "$confpath_gpg"
     if [ "$?" != 0 ]; then
       echo "$GPGEXE returned a bad exit code! Please carefully investigate."
       rm -f "$confpath"
