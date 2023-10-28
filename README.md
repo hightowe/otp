@@ -36,6 +36,13 @@ I find it very nice to have bash tab completion for otp and adding it is easy.
 Just download bash_completion.otp and install it as per the instructions at
 the top of the file.
 
+# Encrypting your otp.conf with gpg
+On October 28, 2023, support for encrypting the otp.conf was added to this repository
+in the form of a wrapper script named otp-edit and updates to bash_completion.otp.
+The otp-edit program assumes that you use a otp.conf that sits alongside your otp binary,
+and not ~/.otprc. Please review the instructions in the comments at the top of otp-edit
+to install and use this capability.
+
 # Tips for obtaining OTP secrets
 Some services/sites will display TOTP secrets that you can just copy and paste,
 but many will not, choosing instead to do things such as only displaying QR codes
