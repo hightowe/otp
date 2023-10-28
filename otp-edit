@@ -1,0 +1,254 @@
+#!/bin/bash
+
+######################################################################
+#
+# A script that can be "wrapped" around otp to store the otp.conf
+# encrypted with gpg. To use this script, move the otp python
+# program to otp-real, name this script otp-edit and place it along
+# side of otp-real and then add a symlink to this script named otp.
+# With that done, use otp-edit to edit your otp.conf and the otp
+# command to retrieve one-time-passwords. Don't forget the passphrase
+# that you use to encrpyt your config file! I strongly suggest that
+# you store that passphrase in a password manager.
+#
+# You will need gpg and will probably want gpg-agent. To get those
+# on Debian-based distros, do the following:
+# $ sudo apt install gpg gpg-agent
+#
+# Quick start to add encryption to an otp installation in ~/bin/
+# ---------------------------------------------------------------
+# Have a backup of your otp.conf and then:
+# $ mv ~/bin/otp ~/bin/otp-real
+# $ mv ~/Downloads/otp-edit ~/bin/
+# $ ln -s ~/bin/otp-edit ~/bin/otp
+# ... and assuming that ~/bin is in your PATH:
+# $ otp-edit   # Follow the prompts to encrypt your otp.conf
+# $ otp        # Will behave like before but now w/encryption
+#
+# If you use gpg-agent, it will cache your passphrase and you will
+# only be asked for it after its time-to-live (TTL) has expired.
+# The default-cache-ttl and max-cache-ttl options for gpg, stored in
+# ~/.gnupg/gpg-agent.conf, control the TTLs. The defaults are a little
+# short for my liking (10 minutes and 2 hours), so I increased them.
+# I also set "pinentry-program /usr/bin/pinentry-tty" to stop GUI
+# popups in X11, but that is also a personal preference.
+#
+# If you use the bash tab completion provided with the otp program,
+# then you will also want to "ln -s ~/bin/otp-edit ~/bin/otp-test"
+# as an additional step to the Quick Start shown above. If otp-test
+# is available, the bash tab completion function will use it to more
+# gracefully handle the condition where tab completion is being tried
+# but gpg-agent does not have the passphrase cached.
+#
+######################################################################
+
+# Configuration variables ############################################
+OTP_REAL="otp-real"         # The name of the otp python program
+CONFFILE="otp.conf"         # otp requires otp.conf (don't change this)
+EDITOREXE="/usr/bin/editor" # Your favorite editor
+MD5SUMEXE="/usr/bin/md5sum" # The md5sum binary
+GPGEXE="/usr/bin/gpg"       # The gpg binary
+
+# Derived variables used through the program #########################
+# We expect CONFFILE to sit in the same location as this program
+dirpath=$(dirname "$(realpath "$0")")
+otp_real="$dirpath/$OTP_REAL"
+confpath="$dirpath/$CONFFILE"
+conffile_gpg="$CONFFILE".gpg
+confpath_gpg="$dirpath/$conffile_gpg"
+confpath_gpg_old="$confpath_gpg".old
+
+DID_I_DECRYPT=0    # A global state variable
+NEED_PASSPHRASE=1  # A global state variable
+
+###########################################################################
+# Our functions
+###########################################################################
+# This function tries to cleanup before exit, including signal
+# exits that are out of our control, which we trap just below.
+function clean_up {
+  # Try to be responsible and remove the unencrypted version
+  if [ "$DID_I_DECRYPT" -a -f "$confpath" ]; then
+    # If we can decrypt without the passphrase then let's stay quiet
+    [ $NEED_PASSPHRASE ] || echo "Removing $confpath that I decrypted!"
+    rm -f "$confpath"
+  fi
+  # This can happen if the user hits ^C during gpg encryption.
+  # Instead of moving the old back into place we copy it, and
+  # this should leave the user in a functional state.
+  if [ ! -f "$confpath_gpg" -a -f "$confpath_gpg_old" ]; then
+    echo "Copying $confpath_gpg_old to $confpath_gpg..."
+    cp -f "$confpath_gpg_old" "$confpath_gpg"
+  fi
+  exit
+}
+trap clean_up SIGHUP SIGINT SIGTERM
+
+# This function handles our decryption
+function decrypt {
+  # If it exists, unencrypt confpath_gpg -> confpath
+  if [ -f "$confpath_gpg" ]; then
+    # If we can decrypt without the passphrase then let's stay quiet
+    if [ $NEED_PASSPHRASE -ne 0 ]; then
+      echo "Running $GPGEXE to decrypt $conffile_gpg..."
+      printf "\033[0;31m%s\033[0m\n" \
+	    "Use ^D to cancel passphrase input. ^C can bork your terminal!"
+    fi
+    "$GPGEXE" --decrypt --quiet "$confpath_gpg" > "$confpath"
+    if [ "$?" != 0 ]; then
+      echo "$GPGEXE returned a bad exit code! Please carefully investigate."
+      rm -f "$confpath"
+      exit -1
+    fi
+    DID_I_DECRYPT=1
+  fi
+}
+
+# By defaut, we assume that the user will need to provide the passphrase
+# (NEED_PASSPHRASE=1). This function test that and sets NEED_PASSPHRASE=0
+# if gpg-agent has us covered.
+function is_passphrase_needed {
+  "$GPGEXE" --quiet --pinentry-mode error --decrypt "$confpath_gpg" >/dev/null 2>/dev/null
+  if [ "$?" -eq 0 ]; then
+    NEED_PASSPHRASE=0
+  fi
+}
+###########################################################################
+# The end of our functions
+###########################################################################
+
+# Bail out if both files are sitting in place
+if [ -f "$confpath_gpg" -a -f "$confpath" ]; then
+  echo "Both $CONFFILE and $conffile_gpg exist in $dirpath!"
+  echo "Both files existing is unexpected and could be a problem."
+  echo "Please investigate the situation and remove one of the files."
+  exit -1;
+fi
+
+# Be sure that we are called by a valid name, to determine how we operate
+my_name=$(basename "$0")
+valid_names=('otp', 'otp-edit', 'otp-test');
+valid_name=0
+for i in "${valid_names[@]}"; do
+  if [ "$i" == "$yourValue" ] ; then
+    valid_name=1
+    break
+  fi
+done
+if ! [ $valid_name ]; then
+  echo "Called as an invalid name: $my_name"
+  exit -1
+fi
+
+
+########################################################################
+# Here is what we do for otp-test ######################################
+########################################################################
+if [ "$my_name" == "otp-test" ]; then
+  is_passphrase_needed
+  if [ $NEED_PASSPHRASE -ne 0 ]; then
+    echo "Unable to decrypt $confpath_gpg without the passphrase"
+    exit -1;
+  fi
+  exit 0
+fi
+########################################################################
+
+########################################################################
+# Here is what we do for otp ###########################################
+########################################################################
+if [ "$my_name" == "otp" ]; then
+  if ! [ -x "$otp_real" ]; then
+    echo "Did not find an executable program at $otp_real!"
+    exit -1
+  fi
+  if ! [ -f "$confpath_gpg" ]; then
+    echo "The encrypted file is missing: $confpath_gpg."
+    echo "Perhaps use otp-edit to create it..."
+    exit -1
+  fi
+
+  # We seem to be all set, let's do it
+  is_passphrase_needed  # To set $NEED_PASSPHRASE
+  decrypt
+  "$otp_real" "$@"
+  clean_up
+  exit 0;
+fi
+########################################################################
+
+########################################################################
+# Below here is what we do for otp-edit ################################
+########################################################################
+if [ "$my_name" != "otp-edit" ]; then
+  echo "BUG: at this point, otp-edit is the only acceptable name!"
+  exit -1
+fi
+
+# If confpath_gpg is missing then we have a couple of paths forward.
+if ! [ -f "$confpath_gpg" ]; then
+  if ! [ -f "$confpath" ]; then
+    echo "Both $CONFFILE and $conffile_gpg are missing from $dirpath"
+    read -p "Would like to create, edit, and then encrypt $CONFFILE? " -n 1 -r
+    echo    # move to a new line
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit -1
+    fi
+    touch "$confpath"
+  elif [ -f "$confpath" ]; then
+    echo "$CONFFILE exists but $conffile_gpg is missing from $dirpath"
+    read -p "Would like to edit and then encrypt $CONFFILE? " -n 1 -r
+    echo    # move to a new line
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit -1
+    fi
+  fi
+fi
+
+# Our decrypt function will die on failure, silently skip if the *.gpg
+# file is not in place, and set DID_I_DECRYPT=1 if it does decrypt.
+decrypt
+
+MD5BEF=$("$MD5SUMEXE" "$confpath" | awk '{print $1}')
+
+# If we get this far then we are to edit and encrypt $confpath
+if [ -f "$confpath" ]; then
+  echo "Running $EDITOREXE to do the editing..."
+  "$EDITOREXE" "$confpath"
+  MD5AFT=$("$MD5SUMEXE" "$confpath" | awk '{print $1}')
+  if [ "$MD5BEF" == "$MD5AFT" ]; then
+    echo "The file did not change so skipping encryption.";
+    if [ "$DID_I_DECRYPT" -a -f "$confpath" ]; then
+      echo "Removing $confpath that I decrypted."
+      rm -f "$confpath"
+    fi
+    exit 0
+  fi
+  echo "Moving $confpath_gpg to $confpath_gpg_old prior to encryption..."
+  mv -f "$confpath_gpg" "$confpath_gpg_old"
+  echo "Running $GPGEXE to do the encryption..."
+  printf "\033[0;31m%s\033[0m\n" \
+	"Use ^D to cancel passphrase input. ^C can bork your terminal!"
+  "$GPGEXE" --symmetric --cipher-algo AES256 "$confpath"
+  if [ "$?" != 0 ]; then
+    echo "$GPGEXE returned a failure exit code! Please carefully investigate."
+    if ! [ -f "$confpath_gpg" ]; then
+      echo "Moving $confpath_gpg_old back to $confpath_gpg..."
+      mv -f "$confpath_gpg_old" "$confpath_gpg"
+    fi
+    cleanup # Will remove any plain file that was decrypted
+    exit -1
+  fi
+  if [ -f "$confpath" ]; then
+    echo "Removing $confpath after successful encryption."
+    rm -f "$confpath"
+    if [ -f "$confpath" ]; then
+      echo "Failed to remove $confpath! Please investigate."
+      echo -1
+    fi
+    exit 0
+  fi
+else
+  echo "Missing $confpath! Please investigate."
+  echo -1
+fi
