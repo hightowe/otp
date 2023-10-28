@@ -16,6 +16,43 @@ _otp()
     COMPREPLY=()
     _get_comp_words_by_ref cur
 
-    COMPREPLY=( $( compgen -W "$( otp -l )" -- "$cur" ) )
+    # On 10/28/2023, when gpg encryption was added, this
+    # cache file was added. The primary reason was performance
+    # because tab completion was sluggish with it requiring
+    # gpg decryption each time. A little smarter here would be
+    # to compare the timestamps between otp.conf and our cache,
+    # but that would require knowing the location of otp.conf.
+    cache_file=~/.otp_completions.cache
+    MAX_AGE=$((60 * 30));  # Thirty minutes
+    if [ -f "$cache_file" ]; then
+      cache_mtime=$(date +%s -r "$cache_file")
+      now=$(date +%s)
+      let age=$(("$now" - "$cache_mtime"))
+      if [ "$age" -gt 0 -a "$age" -lt "$MAX_AGE" ]; then
+        COMPREPLY=( $( compgen -W "$( cat "$cache_file" )" -- "$cur" ) )
+        return
+      fi
+    fi
+
+    # If otp-test exists, we use it to see if completions are
+    # possible. This was introduced on 10/28/2023, when gpg
+    # encryption was added, because the user will need to provide
+    # the passphrase when gpg-agent does not have it cached.
+    # If otp-test returns a non-zero value then we print the message
+    # that it provided. In most cases it will be that the passphrase
+    # is needed for gpg to decrypt the config file.
+    OTP_TEST=$(which otp-test)
+    if [ -x "$OTP_TEST" ]; then
+      msg=$(otp-test 2>/dev/null)
+      if [ "$?" -eq 0 ]; then
+        otp -l > "$cache_file"
+        COMPREPLY=( $( compgen -W "$( cat "$cache_file" )" -- "$cur" ) )
+      else
+        echo "$msg"
+      fi
+    else
+      otp -l > "$cache_file"
+      COMPREPLY=( $( compgen -W "$( cat "$cache_file" )" -- "$cur" ) )
+    fi
 } &&
 complete -F _otp otp
