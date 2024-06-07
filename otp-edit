@@ -241,19 +241,19 @@ if [ -f "$confpath" ]; then
     exit -1
   fi
   if [ -f "$confpath" ]; then
+    # If it exists, refresh the .otp_completions.cache that is used
+    # by .bash_completion.otp, before we delete the $confpath file.
+    if [ -f "$otp_cache_file" ]; then
+      # Should work here without password prompts since we just saved
+      echo "Updating $otp_cache_file"
+      "$otp_real" -l > "$otp_cache_file"
+    fi
+
     echo "Removing $confpath after successful encryption."
     rm -f "$confpath"
     if [ -f "$confpath" ]; then
       echo "Failed to remove $confpath! Please investigate."
       echo -1
-    fi
-
-    # If it exists, refresh the .otp_completions.cache that is used
-    # by .bash_completion.otp
-    if [ -f "$otp_cache_file" ]; then
-      # Should work here without password prompts since we just saved
-      echo "Updating $otp_cache_file"
-      "$otp_real" -l > "$otp_cache_file"
     fi
 
     exit 0
